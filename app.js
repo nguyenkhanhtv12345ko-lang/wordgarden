@@ -1,20 +1,17 @@
 import {seedWords,splitAliases} from './data.js';
 import {exactMatch,normalize,shuffled,validateWords} from './core.js';
-import {connectGemini,disconnectGemini,gradeGemini,reviewWriting} from './gemini.js';
 const $=id=>document.getElementById(id), KEY='wordgarden.v1';
 let stored;try{stored=JSON.parse(localStorage.getItem(KEY)||'null');}catch{}
 let words;try{words=stored?.words?validateWords(stored.words):structuredClone(seedWords);}catch{words=structuredClone(seedWords);}
 // Imported identifiers are regenerated; restore original stable IDs for stored decks.
 if(stored?.words&&words.length===stored.words.length)words.forEach((w,i)=>w.id=stored.words[i].id||w.id);
 let stats=stored?.stats&&Number.isFinite(stored.stats.attempts)?stored.stats:{correct:0,attempts:0,streak:0};
-let settings={accents:true,threshold:88,...stored?.settings};
+let settings={accents:stored?.settings?.accents ?? true};
 let mode='en-vi',queue=[],index=0,direction='en-vi',current=null,graded=false,locked=false,history=[],lastResult=null,hintUsed=false;
-let worker=null,aiReady=false,requestId=0,pending=new Map(),session=0;
-let geminiReady=false;
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').hidden=true,4000);}
 function save(){try{localStorage.setItem(KEY,JSON.stringify({version:1,words,stats,settings}));}catch{toast('Không thể lưu trên thiết bị. Hãy xuất sổ từ để sao lưu.');}}
 function updateStats(){ $('totalCount').textContent=words.length;$('navCount').textContent=words.length;$('correctCount').textContent=stats.correct;$('accuracy').textContent=stats.attempts?Math.round(stats.correct/stats.attempts*100)+'%':'—';$('streak').textContent=stats.streak;}
-function startSession(){session++;queue=shuffled(words);index=0;showQuestion();updateStats();}
+function startSession(){queue=shuffled(words);index=0;showQuestion();updateStats();}
 function showQuestion(){
  graded=false;locked=false;lastResult=null;hintUsed=false;current=queue[index]||null;
  direction=mode==='mixed'?(Math.random()<.5?'en-vi':'vi-en'):mode;
@@ -33,15 +30,13 @@ function similarWords(){
  const tokens=new Set(normalize(current.en.join(' ')).split(' '));
  return words.filter(w=>w.id!==current.id).map(w=>({w,score:w.en.some(e=>normalize(e).split(' ').some(t=>tokens.has(t)))?2:0})).sort((a,b)=>b.score-a.score).slice(0,3).map(x=>x.w);
 }
-function showResult(ok,{kind='dictionary',score=null,skipped=false,explanation='',suggestions=[]}={}){
+function showResult(ok,{skipped=false}={}){
  graded=true;locked=false;$('check').hidden=true;$('next').hidden=false;$('hint').disabled=true;$('skip').disabled=true;$('answer').disabled=true;
  const before={...stats};stats.attempts++;if(ok){stats.correct++;stats.streak++;}else stats.streak=0;
  lastResult={before,ok};save();updateStats();
  const f=$('feedback');f.replaceChildren();f.hidden=false;f.className=ok?'':'wrong';
  appendText(f,'strong',skipped?'Cùng ghi nhớ từ này nhé.':ok?(hintUsed?'Đúng rồi! Lần tới thử không cần gợi ý nhé.':'Đúng rồi! Thêm một hạt mầm lớn lên 🌱'):'Chưa khớp — cùng xem lại nhé.');
  appendText(f,'p',`Đáp án: ${(direction==='en-vi'?current.vi:current.en).join(' · ')}`);
- if(kind==='ai')appendText(f,'p',`AI gợi ý · tương đồng ${Math.round(score*100)}%. Bạn có thể sửa đánh giá bên dưới.`);
- if(kind==='gemini'){appendText(f,'p','Gemini: '+explanation);if(suggestions.length)appendText(f,'p','Cách dịch tương đương: '+suggestions.join(' · '));}
  if(current.note)appendText(f,'p',current.note,'small');
  appendText(f,'p','Một vài từ trong sổ để liên hệ:','small');
  const chips=document.createElement('div');chips.className='chips';similarWords().forEach(w=>appendText(chips,'span',`${w.en[0]} · ${w.vi[0]}`));f.append(chips);
@@ -52,23 +47,12 @@ function showResult(ok,{kind='dictionary',score=null,skipped=false,explanation='
  history.unshift({en:current.en[0],vi:current.vi[0],ok});history=history.slice(0,5);renderRecent();
 }
 function renderRecent(){const list=$('recentList');list.replaceChildren();history.forEach(w=>{const li=document.createElement('li'),d=document.createElement('div');appendText(d,'span',w.en);appendText(d,'small',w.vi);li.append(d);appendText(li,'span',w.ok?'✓':'↻',`result-mark ${w.ok?'':'wrong'}`);list.append(li);});}
-async function check(event){event.preventDefault();if(graded||locked||!current||!$('answer').value.trim())return;
+function check(event){event.preventDefault();if(graded||locked||!current||!$('answer').value.trim())return;
  const answer=$('answer').value.trim(),aliases=direction==='en-vi'?current.vi:current.en;
- if(exactMatch(answer,aliases,settings.accents&&direction==='en-vi'))return showResult(true);
- if(geminiReady&&$('geminiEnabled').checked){
-  locked=true;$('check').disabled=true;$('skip').disabled=true;$('hint').disabled=true;$('check').textContent='Gemini đang chấm…';const activeSession=session;
-  try{const r=await gradeGemini({prompt:direction==='en-vi'?current.en[0]:current.vi[0],answer,aliases,direction});if(activeSession!==session)return;showResult(r.correct,{kind:'gemini',explanation:r.explanation,suggestions:r.suggestions});}
-  catch(error){if(activeSession!==session)return;toast(error.message);showResult(false);appendText($('feedback'),'p','Gemini chưa chấm được; kết quả trên chỉ dựa vào sổ từ. Bạn có thể tự đánh dấu lại.');}
-  finally{if(activeSession===session){locked=false;$('check').disabled=false;$('check').textContent='Kiểm tra →';}}return;
- }
- if(aiReady&&$('aiEnabled').checked){locked=true;$('check').disabled=true;$('skip').disabled=true;$('hint').disabled=true;$('check').textContent='Đang đối chiếu…';const activeSession=session;
- try{const result=await callAI('compare',{answer,aliases});if(activeSession!==session)return;showResult(result.score>=settings.threshold/100,{kind:'ai',score:result.score});}
- catch{if(activeSession!==session)return;toast('AI tạm thời không hoạt động; đã chấm theo sổ từ.');showResult(false);}
- finally{if(activeSession===session){locked=false;$('check').disabled=false;$('check').textContent='Kiểm tra →';}}
- }else showResult(false);
+ showResult(exactMatch(answer,aliases,settings.accents&&direction==='en-vi'));
 }
 function advance(){if(index+1>=queue.length){toast(`Hoàn thành ${queue.length} từ! Bắt đầu lượt mới đã được trộn.`);startSession();}else{index++;showQuestion();}$('answer').focus();}
-function openPage(name){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+name));document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.page===name));$('pageTitle').textContent={practice:'Luyện từ vựng',library:'Sổ từ của tôi',notes:'Góc viết',settings:'Chấm điểm & AI'}[name];if(name==='library')renderLibrary();if(name==='notes')renderWritingWords();window.scrollTo({top:0,behavior:'instant'});}
+function openPage(name){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+name));document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.page===name));$('pageTitle').textContent={practice:'Luyện từ vựng',library:'Sổ từ của tôi',notes:'Góc viết',settings:'Tùy chọn'}[name];if(name==='library')renderLibrary();if(name==='notes')renderWritingWords();window.scrollTo({top:0,behavior:'instant'});}
 document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>openPage(b.dataset.page));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openPage(b.dataset.go));
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('selected',x===b));startSession();});
 $('shuffle').onclick=()=>{startSession();toast('Đã trộn lại toàn bộ từ vựng.');};$('answerForm').onsubmit=check;$('next').onclick=advance;$('skip').onclick=()=>{if(!graded&&!locked&&current)showResult(false,{skipped:true});};
@@ -87,16 +71,5 @@ function noteCount(){const n=$('notes').value.trim();$('noteCount').textContent=
 $('notes').oninput=()=>{noteCount();try{localStorage.setItem('wordgarden.notes',$('notes').value);$('saveStatus').textContent='● Đã lưu';}catch{$('saveStatus').textContent='Chưa lưu được — hãy tải văn bản';}};
 $('exportNotes').onclick=()=>download('wordgarden-notes.txt',$('notes').value,'text/plain;charset=utf-8');
 function renderWritingWords(){const box=$('writingWords');box.replaceChildren();shuffled(words).slice(0,8).forEach(w=>{const b=appendText(box,'button',w.en[0]);b.onclick=()=>{const n=$('notes');n.setRangeText(w.en[0],n.selectionStart,n.selectionEnd,'end');n.focus();n.dispatchEvent(new Event('input'));};});}
-$('accentToggle').checked=settings.accents;$('accentToggle').onchange=e=>{settings.accents=e.target.checked;save();};$('threshold').value=settings.threshold;$('thresholdValue').textContent=settings.threshold+'%';$('threshold').oninput=e=>{settings.threshold=Number(e.target.value);$('thresholdValue').textContent=settings.threshold+'%';save();};
-function callAI(type,payload={}){return new Promise((resolve,reject)=>{const id=++requestId;const timer=setTimeout(()=>{pending.delete(id);reject(Error('AI timeout'));},type==='load'?600000:60000);pending.set(id,{resolve,reject,timer});worker.postMessage({id,type,...payload});});}
-$('loadAI').onclick=async()=>{const b=$('loadAI');b.disabled=true;$('aiProgress').hidden=false;$('aiStatus').textContent='Đang tải mô hình. Bạn có thể tiếp tục học ở mục Luyện từ vựng.';
- try{if(!worker){worker=new Worker(new URL('./ai-worker.js',import.meta.url),{type:'module'});worker.onmessage=({data})=>{if(data.type==='progress'){$('aiStatus').textContent=data.message;if(data.progress!=null)$('aiProgress').value=data.progress;return;}const p=pending.get(data.id);if(p){clearTimeout(p.timer);pending.delete(data.id);data.error?p.reject(Error(data.error)):p.resolve(data);}};worker.onerror=()=>{for(const p of pending.values()){clearTimeout(p.timer);p.reject(Error('Không khởi động được AI'));}pending.clear();worker.terminate();worker=null;};}
- await callAI('load');aiReady=true;$('aiEnabled').disabled=false;$('aiEnabled').checked=true;$('aiStatus').textContent='Đã sẵn sàng. AI chạy trên thiết bị; dữ liệu mô hình có thể được trình duyệt lưu đệm.';b.textContent='✓ Mô hình đã sẵn sàng';$('aiProgress').hidden=true;updateGrading();
- }catch{$('aiStatus').textContent='Không tải được mô hình. Kiểm tra mạng hoặc thử lại. Chấm theo sổ từ vẫn hoạt động.';b.disabled=false;b.textContent='Thử tải lại mô hình';$('aiProgress').hidden=true;}
-};
-function updateGrading(){$('gradingCaption').textContent=geminiReady&&$('geminiEnabled').checked?'Gemini đã bật · Câu trả lời cần đối chiếu được gửi đến Google.':aiReady&&$('aiEnabled').checked?'AI ngữ nghĩa đã bật · Bạn có thể sửa đánh giá sau mỗi câu.':'Chấp nhận các nghĩa tương đương trong sổ từ.';}$('aiEnabled').onchange=updateGrading;
-$('geminiEnabled').onchange=updateGrading;
-$('connectGemini').onclick=async()=>{const b=$('connectGemini');b.disabled=true;$('geminiStatus').textContent='Đang kiểm tra kết nối với Google…';try{const model=await connectGemini($('geminiKey').value);geminiReady=true;$('geminiKey').value='';$('geminiEnabled').disabled=false;$('geminiEnabled').checked=true;$('disconnectGemini').hidden=false;$('geminiStatus').textContent=`Đã kết nối ${model}. Khóa chỉ giữ trong tab này.`;b.textContent='Đổi khóa Gemini';}catch(error){geminiReady=false;$('geminiEnabled').checked=false;$('geminiEnabled').disabled=true;$('geminiStatus').textContent=error.message;$('geminiKey').value='';}finally{b.disabled=false;updateGrading();}};
-$('disconnectGemini').onclick=()=>{disconnectGemini();geminiReady=false;$('geminiKey').value='';$('geminiEnabled').checked=false;$('geminiEnabled').disabled=true;$('disconnectGemini').hidden=true;$('connectGemini').textContent='Kết nối Gemini';$('geminiStatus').textContent='Đã ngắt kết nối và xóa khóa khỏi bộ nhớ.';updateGrading();};
-$('reviewWriting').onclick=async()=>{if(!geminiReady){toast('Kết nối Gemini trong Chấm điểm & AI trước nhé.');openPage('settings');return;}const text=$('notes').value.trim();if(!text)return toast('Viết vài câu trước khi dịch nhé.');if(text.length>12000)return toast('Hãy chọn bài viết dưới 12.000 ký tự để nhận góp ý.');const b=$('reviewWriting'),box=$('writingFeedback');b.disabled=true;box.hidden=false;box.replaceChildren();appendText(box,'p','Gemini đang đọc bài viết…','muted');try{const r=await reviewWriting(text);box.replaceChildren();appendText(box,'h3','Bản dịch');appendText(box,'p',r.translation);appendText(box,'h3','Cách viết gợi ý');appendText(box,'p',r.correction);appendText(box,'h3','Ghi nhớ');appendText(box,'p',r.explanation);}catch(error){box.replaceChildren();appendText(box,'p',error.message);}finally{b.disabled=false;}};
+$('accentToggle').checked=settings.accents;$('accentToggle').onchange=e=>{settings.accents=e.target.checked;save();};
 noteCount();startSession();
