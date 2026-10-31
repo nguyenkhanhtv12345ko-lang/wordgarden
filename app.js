@@ -1,15 +1,17 @@
-import {seedWords,splitAliases} from './data.js';
-import {exactMatch,normalize,shuffled,validateWords} from './core.js';
+import {seedWords,splitAliases,vocabularyVersion} from './data.js?v=4';
+import {upgradeVocabulary} from './vocabulary-update.js?v=4';
+import {exactMatch,normalize,shuffled,validateWords} from './core.js?v=4';
 const $=id=>document.getElementById(id), KEY='wordgarden.v1';
 let stored;try{stored=JSON.parse(localStorage.getItem(KEY)||'null');}catch{}
 let words;try{words=stored?.words?validateWords(stored.words):structuredClone(seedWords);}catch{words=structuredClone(seedWords);}
 // Imported identifiers are regenerated; restore original stable IDs for stored decks.
 if(stored?.words&&words.length===stored.words.length)words.forEach((w,i)=>w.id=stored.words[i].id||w.id);
+words=upgradeVocabulary(words,stored?.vocabularyVersion||0);
 let stats=stored?.stats&&Number.isFinite(stored.stats.attempts)?stored.stats:{correct:0,attempts:0,streak:0};
 let settings={accents:stored?.settings?.accents ?? true};
 let mode='en-vi',queue=[],index=0,direction='en-vi',current=null,graded=false,locked=false,history=[],lastResult=null,hintUsed=false;
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').hidden=true,4000);}
-function save(){try{localStorage.setItem(KEY,JSON.stringify({version:1,words,stats,settings}));}catch{toast('Không thể lưu trên thiết bị. Hãy xuất sổ từ để sao lưu.');}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({version:1,vocabularyVersion,words,stats,settings}));}catch{toast('Không thể lưu trên thiết bị. Hãy xuất sổ từ để sao lưu.');}}
 function updateStats(){ $('totalCount').textContent=words.length;$('navCount').textContent=words.length;$('correctCount').textContent=stats.correct;$('accuracy').textContent=stats.attempts?Math.round(stats.correct/stats.attempts*100)+'%':'—';$('streak').textContent=stats.streak;}
 function startSession(){queue=shuffled(words);index=0;showQuestion();updateStats();}
 function showQuestion(){
@@ -72,4 +74,4 @@ $('notes').oninput=()=>{noteCount();try{localStorage.setItem('wordgarden.notes',
 $('exportNotes').onclick=()=>download('wordgarden-notes.txt',$('notes').value,'text/plain;charset=utf-8');
 function renderWritingWords(){const box=$('writingWords');box.replaceChildren();shuffled(words).slice(0,8).forEach(w=>{const b=appendText(box,'button',w.en[0]);b.onclick=()=>{const n=$('notes');n.setRangeText(w.en[0],n.selectionStart,n.selectionEnd,'end');n.focus();n.dispatchEvent(new Event('input'));};});}
 $('accentToggle').checked=settings.accents;$('accentToggle').onchange=e=>{settings.accents=e.target.checked;save();};
-noteCount();startSession();
+noteCount();startSession();save();
