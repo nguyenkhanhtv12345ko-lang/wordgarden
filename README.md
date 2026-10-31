@@ -1,6 +1,6 @@
 # Wordgarden 🌱
 
-Website học từ vựng Anh–Việt bằng HTML/CSS/JavaScript, chạy trên GitHub Pages.
+Website học từ vựng Anh–Việt bằng HTML/CSS/JavaScript, chạy trên GitHub Pages. Giao diện GitHub Dark, hỗ trợ điện thoại với thanh điều hướng dưới, nút lớn và ô nhập 16px.
 
 - 36 mục từ ban đầu, có nghĩa tương đương và chú thích cách dùng.
 - Luyện Anh → Việt, Việt → Anh hoặc ngẫu nhiên; trộn không lặp trong mỗi lượt.
@@ -36,3 +36,11 @@ Sổ từ, thống kê, tùy chọn và trang viết lưu bằng localStorage tr
 ## GitHub Pages
 
 Phát hành từ nhánh `main`, thư mục gốc `/`. Mọi đường dẫn dùng dạng tương đối để hỗ trợ project Pages. Không lưu thông tin đăng nhập trong mã nguồn.
+
+## Gemini cá nhân
+
+Trong “Chấm điểm & AI”, nhập khóa và kết nối. Khóa chỉ giữ trong biến JavaScript của tab, không lưu localStorage, cookie, tệp hay GitHub. Tải lại trang cần nhập lại khóa. Mô hình ưu tiên Gemini 3.8 Flash lấy từ danh sách Google trả về. Đáp án khớp sổ từ không gọi API; đáp án cần đối chiếu mới gửi từ hỏi, nghĩa tham chiếu và câu trả lời đến Google. Có thể dùng nút “Dịch & góp ý với Gemini” để gửi trang viết theo yêu cầu. API có thể tính phí, hết hạn mức hoặc quá tải; lỗi được thông báo, chế độ sổ từ vẫn dùng được. Đây là chế độ dùng khóa riêng trên thiết bị cá nhân; nếu muốn dùng chung một khóa cho nhiều người, cần backend giữ khóa.
+
+Kiểm tra thực tế ngày 31/10/2026: xác thực danh sách mô hình thành công, nhưng Gemini 3.8 Flash trả HTTP 503 (high demand), nên chưa xác nhận được chấm/dịch trực tiếp với khóa cá nhân ở thời điểm này. Không có khóa thực nào được ghi trong dự án.
+
+Đã kiểm tra trong trình duyệt: mô hình MiniLM tải thành công và chạy trong Web Worker; giao diện ở chiều rộng điện thoại 390px. 8 kiểm thử tự động cho sổ từ, chấm cơ bản, trộn từ, kiểm tra dữ liệu nhập và luồng Gemini đều đạt.

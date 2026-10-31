@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {connectGemini,disconnectGemini,gradeGemini,reviewWriting} from '../gemini.js';
+test('Gemini handles discovery, structured grading, writing review and disconnect without leaking key into URLs',async()=>{
+ const realFetch=globalThis.fetch;const calls=[];
+ globalThis.fetch=async(url,options)=>{calls.push({url,options});if(url.includes('/models?'))return Response.json({models:[{name:'models/gemini-3.8-flash',supportedGenerationMethods:['generateContent']}]});const input=JSON.parse(options.body);const writing=input.systemInstruction.parts[0].text.includes('writing tutor');return Response.json({candidates:[{content:{parts:[{text:JSON.stringify(writing?{translation:'Tôi thích đi dạo.',correction:'I enjoy walking.',explanation:'Enjoy + V-ing.'}:{correct:true,explanation:'Hai cách diễn đạt cùng nghĩa.',suggestions:['thích','tận hưởng']})}]}}]});};
+ try{assert.equal(await connectGemini('fake-key-for-test'),'gemini-3.8-flash');const r=await gradeGemini({prompt:'enjoy',answer:'vui thích',aliases:['tận hưởng'],direction:'en-vi'});assert.equal(r.correct,true);assert.ok(r.suggestions.includes('thích'));assert.equal((await reviewWriting('I enjoy walk.')).correction,'I enjoy walking.');assert.ok(calls.every(c=>!c.url.includes('fake-key')));assert.equal(calls[1].options.headers['x-goog-api-key'],'fake-key-for-test');disconnectGemini();await assert.rejects(()=>reviewWriting('hello'),/Chưa kết nối/);}finally{disconnectGemini();globalThis.fetch=realFetch;}
+});
+test('Gemini rejects malformed grading and gives understandable overload errors',async()=>{
+ const realFetch=globalThis.fetch;let mode='invalid';globalThis.fetch=async(url)=>{if(url.includes('/models?'))return Response.json({models:[{name:'models/gemini-3.8-flash',supportedGenerationMethods:['generateContent']}]});if(mode==='overload')return Response.json({error:{message:'internal'}},{status:503});return Response.json({candidates:[{content:{parts:[{text:'{"correct":"yes"}'}]}}]});};
+ try{await connectGemini('fake-key-for-test');await assert.rejects(()=>gradeGemini({prompt:'a',answer:'b',aliases:['c'],direction:'en-vi'}),/không hợp lệ/);mode='overload';await assert.rejects(()=>reviewWriting('hello'),/HTTP 503/);}finally{disconnectGemini();globalThis.fetch=realFetch;}
+});
