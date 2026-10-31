@@ -1,0 +1,8 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {exactMatch,shuffled,validateWords,cosine,negationMismatch} from '../core.js';import {seedWords} from '../data.js';
+test('All 36 supplied entries have answers in both languages',()=>{assert.equal(seedWords.length,36);assert.equal(validateWords(seedWords).length,36);});
+test('Accept synonyms, casing, punctuation and optional Vietnamese accents',()=>{assert.ok(exactMatch('TẬN HƯỞNG!', ['thưởng thức','tận hưởng']));assert.ok(exactMatch('chuan bi',['chuẩn bị'],true));assert.ok(!exactMatch('chuan bi',['chuẩn bị'],false));assert.ok(!exactMatch('', ['chuẩn bị'],true));assert.ok(!exactMatch('không chuẩn bị',['chuẩn bị'],true));});
+test('English phrase variants and hyphens are accepted',()=>assert.ok(exactMatch('work part time',['work part-time'])));
+test('Shuffle never loses or duplicates entries, and leaves original intact',()=>{const original=[1,2,3,4,5];const result=shuffled(original,()=>.3);assert.deepEqual([...result].sort(),original);assert.notDeepEqual(result,original);assert.deepEqual(original,[1,2,3,4,5]);});
+test('Reject malformed imports and neutralize unsupported properties',()=>{assert.throws(()=>validateWords([{en:['x'],vi:[]}])) ;assert.throws(()=>validateWords([{en:['x'],vi:[false]}]));assert.throws(()=>validateWords({}));assert.equal(validateWords([{en:['hello'],vi:['xin chào'],extra:'ignored'}])[0].extra,undefined);});
+test('Semantic scoring uses cosine and blocks simple negation mismatches',()=>{assert.equal(cosine([1,0],[1,0]),1);assert.equal(cosine([1,0],[0,1]),0);assert.ok(negationMismatch('không thích','thích'));assert.ok(negationMismatch('not delicious','delicious'));assert.ok(!negationMismatch('tận hưởng','thưởng thức'));});
