@@ -1,6 +1,6 @@
-import {seedWords,splitAliases,vocabularyVersion} from './data.js?v=4';
-import {upgradeVocabulary} from './vocabulary-update.js?v=4';
-import {exactMatch,normalize,shuffled,validateWords} from './core.js?v=4';
+import {seedWords,splitAliases,vocabularyVersion} from './data.js?v=5';
+import {upgradeVocabulary} from './vocabulary-update.js?v=5';
+import {exactMatch,normalize,shuffled,validateWords,questionCaption} from './core.js?v=5';
 const $=id=>document.getElementById(id), KEY='wordgarden.v1';
 let stored;try{stored=JSON.parse(localStorage.getItem(KEY)||'null');}catch{}
 let words;try{words=stored?.words?validateWords(stored.words):structuredClone(seedWords);}catch{words=structuredClone(seedWords);}
@@ -21,7 +21,7 @@ function showQuestion(){
  $('questionNumber').textContent=current?`${String(index+1).padStart(2,'0')} / ${queue.length}`:'0 / 0';
  $('directionLabel').textContent=direction==='en-vi'?'ENGLISH → TIẾNG VIỆT':'TIẾNG VIỆT → ENGLISH';
  $('prompt').textContent=current?(direction==='en-vi'?current.en[0]:current.vi[0]):'Sổ từ đang trống';
- $('promptCaption').textContent=current?(direction==='en-vi'?'Viết nghĩa tiếng Việt mà bạn biết.':'Viết từ hoặc cụm từ tiếng Anh tương ứng.'):'Thêm từ trong Sổ từ của tôi để bắt đầu.';
+ $('promptCaption').textContent=current?questionCaption(current,direction):'Thêm từ trong Sổ từ của tôi để bắt đầu.';
  $('answer').placeholder=direction==='en-vi'?'Gõ nghĩa tiếng Việt ở đây…':'Type the English word here…';
  $('answer').lang=direction==='en-vi'?'vi':'en';
  $('progressText').textContent=index?`Đã đi qua ${index} / ${queue.length} từ`:'Bắt đầu hành trình hôm nay';
@@ -30,7 +30,7 @@ function showQuestion(){
 function appendText(parent,tag,text,cls){const el=document.createElement(tag);el.textContent=text;if(cls)el.className=cls;parent.append(el);return el;}
 function similarWords(){
  const tokens=new Set(normalize(current.en.join(' ')).split(' '));
- return words.filter(w=>w.id!==current.id).map(w=>({w,score:w.en.some(e=>normalize(e).split(' ').some(t=>tokens.has(t)))?2:0})).sort((a,b)=>b.score-a.score).slice(0,3).map(x=>x.w);
+ return words.filter(w=>w.id!==current.id).map(w=>({w,score:current.contrast&&w.en.some(e=>normalize(e)===normalize(current.contrast))?100:w.en.some(e=>normalize(e).split(' ').some(t=>tokens.has(t)))?2:0})).sort((a,b)=>b.score-a.score).slice(0,3).map(x=>x.w);
 }
 function showResult(ok,{skipped=false}={}){
  graded=true;locked=false;$('check').hidden=true;$('next').hidden=false;$('hint').disabled=true;$('skip').disabled=true;$('answer').disabled=true;
@@ -61,10 +61,10 @@ $('shuffle').onclick=()=>{startSession();toast('Đã trộn lại toàn bộ t�
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&graded&&$('page-practice').classList.contains('active')&&!$('wordDialog').open&&(['answer','next'].includes(document.activeElement.id)||document.activeElement===document.body)){e.preventDefault();advance();}});
 $('hint').onclick=()=>{if(!current||locked)return;hintUsed=true;const target=(direction==='en-vi'?current.vi:current.en)[0];$('feedback').hidden=false;$('feedback').className='neutral';$('feedback').textContent=`Bắt đầu bằng “${target.slice(0,1)}…” · ${target.split(/\s+/).length} từ trong đáp án gợi ý.`;$('answer').focus();};
 $('speak').onclick=()=>{if(!('speechSynthesis' in window))return toast('Trình duyệt này chưa hỗ trợ phát âm.');speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(direction==='en-vi'?current.en[0]:current.vi[0]);utterance.lang=direction==='en-vi'?'en-US':'vi-VN';utterance.rate=.85;speechSynthesis.speak(utterance);};
-function renderLibrary(){const q=normalize($('search').value,true),list=$('wordList');list.replaceChildren();const filtered=words.filter(w=>normalize([...w.en,...w.vi].join(' '),true).includes(q));if(!filtered.length)appendText(list,'p','Chưa có từ phù hợp. Hãy thêm một từ mới.','muted');filtered.forEach(w=>{const card=document.createElement('article');card.className='word-card';appendText(card,'h3',w.en.join(' / '));appendText(card,'p',w.vi.join(' · '));if(w.note)appendText(card,'p',w.note,'word-note');const actions=document.createElement('div');actions.className='word-actions';const edit=appendText(actions,'button','Chỉnh sửa','text-button'),del=appendText(actions,'button','Xóa','text-button');edit.onclick=()=>openWord(w);del.onclick=()=>{if(!confirm(`Xóa “${w.en[0]}” khỏi sổ từ?`))return;words=words.filter(x=>x.id!==w.id);save();renderLibrary();startSession();};card.append(actions);list.append(card);});}
-function openWord(w){$('wordForm').reset();$('editId').value=w?.id||'';$('wordEn').value=w?.en.join(' / ')||'';$('wordVi').value=w?.vi.join(' / ')||'';$('wordNote').value=w?.note||'';$('dialogTitle').textContent=w?'Chăm chút một từ':'Thêm một hạt mầm';$('wordDialog').showModal();}
+function renderLibrary(){const q=normalize($('search').value,true),list=$('wordList');list.replaceChildren();const filtered=words.filter(w=>normalize([...w.en,...w.vi].join(' '),true).includes(q));if(!filtered.length)appendText(list,'p','Chưa có từ phù hợp. Hãy thêm một từ mới.','muted');filtered.forEach(w=>{const card=document.createElement('article');card.className='word-card';appendText(card,'h3',w.en.join(' / '));appendText(card,'p',w.vi.join(' · '));if(w.context)appendText(card,'p','Ngữ cảnh: '+w.context,'word-note');if(w.note)appendText(card,'p',w.note,'word-note');const actions=document.createElement('div');actions.className='word-actions';const edit=appendText(actions,'button','Chỉnh sửa','text-button'),del=appendText(actions,'button','Xóa','text-button');edit.onclick=()=>openWord(w);del.onclick=()=>{if(!confirm(`Xóa “${w.en[0]}” khỏi sổ từ?`))return;words=words.filter(x=>x.id!==w.id);save();renderLibrary();startSession();};card.append(actions);list.append(card);});}
+function openWord(w){$('wordForm').reset();$('editId').value=w?.id||'';$('wordEn').value=w?.en.join(' / ')||'';$('wordVi').value=w?.vi.join(' / ')||'';$('wordNote').value=w?.note||'';$('wordContext').value=w?.context||'';$('dialogTitle').textContent=w?'Chăm chút một từ':'Thêm một hạt mầm';$('wordDialog').showModal();}
 $('search').oninput=renderLibrary;$('addWord').onclick=()=>openWord();$('closeDialog').onclick=()=>$('wordDialog').close();
-$('wordForm').onsubmit=e=>{e.preventDefault();const en=splitAliases($('wordEn').value),vi=splitAliases($('wordVi').value);if(!en.length||!vi.length)return toast('Điền ít nhất một từ cho mỗi ngôn ngữ.');const id=$('editId').value||crypto.randomUUID(),word={id,en,vi,note:$('wordNote').value.trim()},at=words.findIndex(w=>w.id===id);if(at>=0)words[at]=word;else words.push(word);save();$('wordDialog').close();renderLibrary();startSession();toast('Đã lưu vào sổ từ.');};
+$('wordForm').onsubmit=e=>{e.preventDefault();const en=splitAliases($('wordEn').value),vi=splitAliases($('wordVi').value);if(!en.length||!vi.length)return toast('Điền ít nhất một từ cho mỗi ngôn ngữ.');const id=$('editId').value||crypto.randomUUID(),word={...words.find(w=>w.id===id),id,en,vi,note:$('wordNote').value.trim(),context:$('wordContext').value.trim()},at=words.findIndex(w=>w.id===id);if(at>=0)words[at]=word;else words.push(word);save();$('wordDialog').close();renderLibrary();startSession();toast('Đã lưu vào sổ từ.');};
 function download(name,content,type){const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);}
 $('export').onclick=()=>download('wordgarden-vocabulary.json',JSON.stringify({version:1,words},null,2),'application/json');
 $('import').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>5e6)throw Error('Tệp quá lớn. Hãy dùng tệp dưới 5 MB.');const data=validateWords(JSON.parse(await file.text()));const existing=new Set(words.map(w=>normalize(w.en[0])));let added=0;for(const w of data){const key=normalize(w.en[0]);if(!existing.has(key)){words.push(w);existing.add(key);added++;}}save();renderLibrary();startSession();toast(`Đã thêm ${added} từ mới; bỏ qua từ trùng.`);}catch(err){toast(err.message||'Không đọc được tệp JSON.');}e.target.value='';};

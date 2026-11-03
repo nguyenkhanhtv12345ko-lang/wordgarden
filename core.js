@@ -8,5 +8,6 @@ export function shuffled(items,random=Math.random){const result=[...items];for(l
 export function validateWords(data){
  const words=Array.isArray(data)?data:data?.words;
  if(!Array.isArray(words)||words.length>5000)throw Error('Sổ từ cần là danh sách tối đa 5.000 từ.');
- return words.map((w,i)=>{if(!w||!['en','vi'].every(k=>Array.isArray(w[k])&&w[k].length>0&&w[k].length<=50&&w[k].every(x=>typeof x==='string'&&x.trim()&&x.length<=500)))throw Error(`Từ thứ ${i+1} không đúng định dạng.`);return {id:`import-${i}-${Date.now()}`,en:w.en.map(x=>x.trim()),vi:w.vi.map(x=>x.trim()),note:typeof w.note==='string'?w.note.slice(0,2000):''};});
+ return words.map((w,i)=>{if(!w||!['en','vi'].every(k=>Array.isArray(w[k])&&w[k].length>0&&w[k].length<=50&&w[k].every(x=>typeof x==='string'&&x.trim()&&x.length<=500)))throw Error(`Từ thứ ${i+1} không đúng định dạng.`);return {id:`import-${i}-${Date.now()}`,en:w.en.map(x=>x.trim()),vi:w.vi.map(x=>x.trim()),note:typeof w.note==='string'?w.note.slice(0,2000):'',...Object.fromEntries(['context','contrast'].filter(k=>typeof w[k]==='string'&&w[k].trim()).map(k=>[k,w[k].trim().slice(0,500)]))};});
 }
+export function questionCaption(word,direction){return word?.context?`Ngữ cảnh: ${word.context}`:direction==='en-vi'?'Viết nghĩa tiếng Việt mà bạn biết.':'Viết từ hoặc cụm từ tiếng Anh tương ứng.';}

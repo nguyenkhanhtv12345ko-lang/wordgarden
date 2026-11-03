@@ -2,7 +2,7 @@
 
 Web học từ vựng Anh–Việt với giao diện GitHub Dark tối ưu cho điện thoại.
 
-- 45 mục từ ban đầu, nhiều nghĩa tương đương và chú thích cách dùng.
+- 73 mục từ ban đầu, nhiều nghĩa tương đương và chú thích cách dùng.
 - Luyện Anh → Việt, Việt → Anh hoặc trộn cả hai chiều.
 - Trộn không lặp trong một lượt; gõ đáp án, gợi ý, phát âm.
 - Thêm/sửa/xóa từ; xuất/nhập JSON để sao lưu hoặc chuyển thiết bị.
@@ -25,3 +25,5 @@ Nội dung nhập được hiển thị dưới dạng văn bản, không thực
 Phát hành từ nhánh main, thư mục gốc /. Đường dẫn tài nguyên tương đối hỗ trợ project Pages.
 
 Bộ từ phiên bản 2 bổ sung cách diễn đạt tiếng Việt và tách food/dish/meal, usually/often, dinner/have dinner, home/hometown, cinema/movie/watch a movie. Tự cập nhật các mục có sẵn theo mã ổn định; giữ từ tự thêm, giữ sửa đổi chủ động, ghép thêm đáp án do người học bổ sung. Không đưa lại mục gốc đã xóa; việc cập nhật chỉ chạy một lần.
+
+Ngày 03/11/2026: thêm 28 thẻ cho 21 dòng từ vựng mới; tách mọi cặp từ sang thẻ riêng. Các thẻ có ngữ cảnh trong câu hỏi, ví dụ song ngữ và ghi chú đối chiếu. Ngữ cảnh được giữ khi lưu, chỉnh sửa hoặc xuất/nhập. Nâng cấp một lần từ bộ 45 mục, không đưa lại từ cũ đã xóa, không ghi đè từ tự thêm trùng tiếng Anh.
