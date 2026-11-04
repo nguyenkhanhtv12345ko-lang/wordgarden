@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {exactMatch,shuffled,validateWords} from '../core.js';import {seedWords} from '../data.js';
-test('All 73 vocabulary entries have answers in both languages',()=>{assert.equal(seedWords.length,73);assert.equal(validateWords(seedWords).length,73);});
+test('All 117 vocabulary entries have answers in both languages',()=>{assert.equal(seedWords.length,117);assert.equal(validateWords(seedWords).length,117);});
 test('Accept synonyms, casing, punctuation and optional Vietnamese accents',()=>{assert.ok(exactMatch('TẬN HƯỞNG!', ['thưởng thức','tận hưởng']));assert.ok(exactMatch('chuan bi',['chuẩn bị'],true));assert.ok(!exactMatch('chuan bi',['chuẩn bị'],false));assert.ok(!exactMatch('', ['chuẩn bị'],true));assert.ok(!exactMatch('không chuẩn bị',['chuẩn bị'],true));});
 test('English phrase variants and hyphens are accepted',()=>assert.ok(exactMatch('work part time',['work part-time'])));
 test('Shuffle never loses or duplicates entries, and leaves original intact',()=>{const original=[1,2,3,4,5];const result=shuffled(original,()=>.3);assert.deepEqual([...result].sort(),original);assert.notDeepEqual(result,original);assert.deepEqual(original,[1,2,3,4,5]);});

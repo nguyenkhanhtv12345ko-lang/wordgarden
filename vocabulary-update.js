@@ -1,6 +1,7 @@
 import {seedWords as previousSeeds} from './legacy-data.js';
-import {seedWords,addedWordParents,vocabularyVersion} from './data.js?v=5';
-import {novemberWords} from './vocabulary-november.js?v=5';
+import {seedWords,addedWordParents,vocabularyVersion} from './data.js?v=6';
+import {novemberWords} from './vocabulary-november.js?v=6';
+import {festivalWords} from './vocabulary-festivals.js?v=6';
 
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 function updateAliases(saved,previous,next){
@@ -24,13 +25,17 @@ export function upgradeVocabulary(words,fromVersion=0){
   if(fromVersion<2&&addedWordParents[word.id]&&existing.has(addedWordParents[word.id])&&!existing.has(word.id))result.push(structuredClone(word));
  }
  // This batch belongs to the supplied study deck, rather than unrelated custom-only decks.
- if(fromVersion<3&&words.some(w=>current.has(w.id))){
+ if(words.some(w=>current.has(w.id))){
   const names=new Set(result.flatMap(w=>w.en.map(x=>x.toLowerCase().trim())));
-  for(const word of novemberWords){
-   if(!existing.has(word.id)&&!word.en.some(en=>names.has(en.toLowerCase().trim()))){
-    result.push(structuredClone(word));word.en.forEach(en=>names.add(en.toLowerCase().trim()));
+  for(const batch of [{version:3,words:novemberWords},{version:4,words:festivalWords}]){
+   if(fromVersion>=batch.version)continue;
+   for(const word of batch.words){
+    if(!existing.has(word.id)&&!word.en.some(en=>names.has(en.toLowerCase().trim()))){
+     result.push(structuredClone(word));existing.add(word.id);word.en.forEach(en=>names.add(en.toLowerCase().trim()));
+    }
    }
   }
  }
+
  return result;
 }

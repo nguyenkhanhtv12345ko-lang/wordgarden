@@ -1,3 +1,4 @@
+import {festivalWords} from './vocabulary-festivals.js?v=6';
 import {novemberWords} from './vocabulary-november.js?v=5';
 // Stable identifiers retain progress and user changes across vocabulary updates.
 const raw = [
@@ -51,10 +52,11 @@ const additions = [
 ['seed-45','seed-24','go to the cinema / go to the movies','đi xem phim / đi xem chiếu bóng / đến rạp xem phim / đi xem phim ở rạp','Nhấn mạnh đi đến rạp để xem phim.']
 ];
 export const splitAliases = value => value.split(/\s*[/;]\s*/).map(x=>x.trim()).filter(Boolean);
-export const vocabularyVersion = 3;
+export const vocabularyVersion = 4;
 export const seedWords = [
  ...raw.map(([en,vi,note=''],i)=>({id:`seed-${i+1}`,en:splitAliases(en),vi:splitAliases(vi),note})),
  ...additions.map(([id,parent,en,vi,note])=>({id,en:splitAliases(en),vi:splitAliases(vi),note})),
- ...novemberWords
+ ...novemberWords,
+ ...festivalWords
 ];
 export const addedWordParents = Object.fromEntries(additions.map(([id,parent])=>[id,parent]));

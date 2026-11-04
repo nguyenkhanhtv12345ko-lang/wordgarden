@@ -1,6 +1,6 @@
-import {seedWords,splitAliases,vocabularyVersion} from './data.js?v=5';
-import {upgradeVocabulary} from './vocabulary-update.js?v=5';
-import {exactMatch,normalize,shuffled,validateWords,questionCaption} from './core.js?v=5';
+import {seedWords,splitAliases,vocabularyVersion} from './data.js?v=6';
+import {upgradeVocabulary} from './vocabulary-update.js?v=6';
+import {exactMatch,normalize,shuffled,validateWords,questionCaption} from './core.js?v=6';
 const $=id=>document.getElementById(id), KEY='wordgarden.v1';
 let stored;try{stored=JSON.parse(localStorage.getItem(KEY)||'null');}catch{}
 let words;try{words=stored?.words?validateWords(stored.words):structuredClone(seedWords);}catch{words=structuredClone(seedWords);}

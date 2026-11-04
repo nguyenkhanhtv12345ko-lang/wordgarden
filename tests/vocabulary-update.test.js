@@ -4,9 +4,9 @@ import {seedWords as previousSeeds} from '../legacy-data.js';
 import {upgradeVocabulary} from '../vocabulary-update.js';
 import {exactMatch} from '../core.js';
 const find=(words,id)=>words.find(w=>w.id===id);
-test('Stock deck upgrades to 73 distinct entries and corrects misleading meanings',()=>{
+test('Stock deck upgrades to 117 distinct entries and corrects misleading meanings',()=>{
  const upgraded=upgradeVocabulary(structuredClone(previousSeeds));
- assert.equal(upgraded.length,73);assert.equal(new Set(upgraded.map(w=>w.id)).size,73);
+ assert.equal(upgraded.length,117);assert.equal(new Set(upgraded.map(w=>w.id)).size,117);
  assert.deepEqual(upgraded,seedWords);
  for(const [id,wrong] of [['seed-8','mọi thứ'],['seed-10','về quê'],['seed-30','ăn tối'],['seed-32','bữa ăn']])assert.equal(exactMatch(wrong,find(upgraded,id).vi),false);
  for(const [id,right] of [['seed-1','sửa soạn'],['seed-4','kiếm được rất nhiều tiền'],['seed-16','cảm thấy vui thích'],['seed-31','mắc tiền'],['seed-38','món ăn'],['seed-39','bữa ăn'],['seed-43','ăn tối'],['seed-44','về quê']])assert.equal(exactMatch(right,find(upgraded,id).vi),true);
